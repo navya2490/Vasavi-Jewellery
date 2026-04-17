@@ -16,8 +16,8 @@ Production-grade web application that turns a high-level ERP mission into a mult
 ## Stack
 
 - **Frontend**: Next.js 14 App Router + TypeScript + Tailwind CSS + shadcn/ui style components
-- **Backend**: Next.js Route Handler API (`/api/missions/execute`)
-- **AI Agent**: Anthropic Claude (`claude-sonnet-4-20250514`) with structured tool calling
+- **Backend**: Next.js Route Handler APIs (`/api/missions/execute` + `/api/tools/*`)
+- **AI Agent**: Anthropic Claude (`claude-sonnet-4-20250514`) with multi-turn structured tool calling
 - **State**: React `useReducer` + `useState`
 
 ## Project Structure
@@ -25,6 +25,7 @@ Production-grade web application that turns a high-level ERP mission into a mult
 ```txt
 app/
   api/missions/execute/route.ts      # SSE mission execution API
+  api/tools/*/route.ts               # Mock tool handler endpoints
   globals.css                        # Tailwind + design tokens
   layout.tsx                         # App metadata + shell
   page.tsx                           # Main mission console page
@@ -42,14 +43,9 @@ components/
     textarea.tsx
 
 lib/
-  agents/erp-mission-agent.ts        # Claude tool-use orchestration loop
-  erp/
-    finance.ts
-    helpers.ts
-    inventory.ts
-    mock-data.ts
-    payroll.ts
-    tool-registry.ts                 # ERP tool definitions + execution
+  agent.ts                           # Claude tool_use loop (multi-turn)
+  tools.ts                           # Anthropic JSON Schemas + tool dispatcher
+  tool-handlers.ts                   # Realistic mock data handlers
   types/
     erp.ts
     mission.ts
@@ -102,7 +98,6 @@ Response:
 - `text/event-stream`
 - Streams structured mission events:
   - `mission_started`
-  - `plan_created`
   - `step_started`
   - `step_completed`
   - `agent_note`
@@ -113,5 +108,5 @@ Response:
 
 - Route runs on **Node.js runtime** for Anthropic SDK compatibility.
 - Includes structured input validation with `zod`.
-- Limits agent turn-count to prevent runaway loops.
-- All ERP operations are modularized for easy replacement with real ERP APIs.
+- Agent supports **3–8+ turn tool loops** and terminates only on final text response.
+- Tool handlers currently return realistic mock data and include `TODO` markers for DB replacement.

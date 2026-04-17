@@ -17,7 +17,6 @@ export interface MissionFinalReport {
 
 export type MissionEventType =
   | "mission_started"
-  | "plan_created"
   | "step_started"
   | "step_completed"
   | "agent_note"
@@ -32,11 +31,6 @@ export interface MissionEventBase {
 export interface MissionStartedEvent extends MissionEventBase {
   type: "mission_started";
   mission: string;
-}
-
-export interface PlanCreatedEvent extends MissionEventBase {
-  type: "plan_created";
-  plan: MissionPlanStep[];
 }
 
 export interface StepStartedEvent extends MissionEventBase {
@@ -58,7 +52,7 @@ export interface AgentNoteEvent extends MissionEventBase {
 
 export interface MissionCompletedEvent extends MissionEventBase {
   type: "mission_completed";
-  report: MissionFinalReport;
+  finalText: string;
 }
 
 export interface MissionFailedEvent extends MissionEventBase {
@@ -68,7 +62,6 @@ export interface MissionFailedEvent extends MissionEventBase {
 
 export type MissionEvent =
   | MissionStartedEvent
-  | PlanCreatedEvent
   | StepStartedEvent
   | StepCompletedEvent
   | AgentNoteEvent

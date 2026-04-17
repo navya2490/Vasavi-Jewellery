@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { runMissionAgent } from "@/lib/agents/erp-mission-agent";
+import { runAgent } from "@/lib/agent";
 import { toSseEvent } from "@/lib/sse";
 import type { MissionEvent, MissionExecutionRequest } from "@/lib/types/mission";
 
@@ -36,7 +36,7 @@ export async function POST(request: Request): Promise<Response> {
 
   void (async () => {
     try {
-      await runMissionAgent({
+      await runAgent({
         mission: parsedBody.data.mission,
         onEvent: writeEvent,
       });
