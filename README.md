@@ -1,112 +1,69 @@
 # ERP AI Mission Agent
 
-Production-grade web application that turns a high-level ERP mission into a multi-step AI-driven execution flow with live progress and a final summary report.
+Production-grade mission command center for jewelry ERP operations.  
+Users provide high-level missions, and Claude executes them via multi-turn tool calls with live streaming step updates.
 
-## Core Capabilities
+## What You Get
 
-- Accepts a mission prompt such as:
-  - "Reconcile today's gold stock across all branches"
-  - "Generate payroll for all artisans this month"
-- Uses Claude tool-use loops to:
-  1. Generate an ordered mission plan
-  2. Execute ERP steps sequentially
-  3. Stream progress events to the frontend in real time
-  4. Produce a final executive report
+- Dark command-center UI for mission input and live execution tracking
+- Multi-turn agent loop with Claude tool-use
+- Typed real-time stream from backend to frontend
+- Mocked ERP tool APIs with realistic jewelry business data
+- Final answer panel with key metrics and rerun flow
 
 ## Stack
 
-- **Frontend**: Next.js 14 App Router + TypeScript + Tailwind CSS + shadcn/ui style components
-- **Backend**: Next.js Route Handler APIs (`/api/missions/execute` + `/api/tools/*`)
-- **AI Agent**: Anthropic Claude (`claude-sonnet-4-20250514`) with multi-turn structured tool calling
-- **State**: React `useReducer` + `useState`
+- **Frontend**: Next.js 14 App Router + TypeScript + Tailwind + shadcn-style components
+- **Backend**: Next.js Route Handlers
+- **AI**: Anthropic Claude (`claude-sonnet-4-20250514`)
+- **State**: React `useState` + `useReducer`
 
-## Project Structure
+## Main Routes
 
-```txt
-app/
-  api/missions/execute/route.ts      # SSE mission execution API
-  api/tools/*/route.ts               # Mock tool handler endpoints
-  globals.css                        # Tailwind + design tokens
-  layout.tsx                         # App metadata + shell
-  page.tsx                           # Main mission console page
+- `POST /api/agent`  
+  Streaming agent endpoint for mission execution.
 
-components/
-  mission/mission-console.tsx        # Client UI, reducer, SSE consumption
-  ui/                                # shadcn-style reusable UI components
-    badge.tsx
-    button.tsx
-    card.tsx
-    input.tsx
-    progress.tsx
-    scroll-area.tsx
-    separator.tsx
-    textarea.tsx
+- `POST /api/tools/*`  
+  Mock tool handlers for all ERP tools.
 
-lib/
-  agent.ts                           # Claude tool_use loop (multi-turn)
-  tools.ts                           # Anthropic JSON Schemas + tool dispatcher
-  tool-handlers.ts                   # Realistic mock data handlers
-  types/
-    erp.ts
-    mission.ts
-  sse.ts                             # SSE formatter
-  utils.ts                           # cn() utility for class composition
-```
+## Agent Stream Event Contract
 
-## Setup
+`/api/agent` emits newline-delimited SSE events:
 
-1. Install dependencies:
+- `plan_step`
+- `tool_result`
+- `final_answer`
 
-   ```bash
-   npm install
-   ```
+Payload shape:
 
-2. Configure environment variables:
-
-   ```bash
-   cp .env.example .env.local
-   ```
-
-   Then set:
-
-   ```bash
-   ANTHROPIC_API_KEY=your_real_key
-   ```
-
-3. Run the application:
-
-   ```bash
-   npm run dev
-   ```
-
-4. Open `http://localhost:3000`.
-
-## API Contract
-
-### `POST /api/missions/execute`
-
-Request body:
-
-```json
+```ts
 {
-  "mission": "Reconcile today's gold stock across all branches"
+  type: "plan_step" | "tool_result" | "final_answer",
+  payload: object
 }
 ```
 
-Response:
+## Environment Variables
 
-- `text/event-stream`
-- Streams structured mission events:
-  - `mission_started`
-  - `step_started`
-  - `step_completed`
-  - `agent_note`
-  - `mission_completed`
-  - `mission_failed`
+Create `.env.local` from `.env.example` and set:
 
-## Production Notes
+```bash
+ANTHROPIC_API_KEY=your_real_key
+```
 
-- Route runs on **Node.js runtime** for Anthropic SDK compatibility.
-- Includes structured input validation with `zod`.
-- Agent supports **3–8+ turn tool loops** and terminates only on final text response.
-- Tool handlers currently return realistic mock data and include `TODO` markers for DB replacement.
+## Run Locally
+
+```bash
+npm install
+npm run dev
+```
+
+Open `http://localhost:3000`.
+
+## Build & Quality
+
+```bash
+npm run typecheck
+npm run lint
+npm run build
+```
