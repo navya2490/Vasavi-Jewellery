@@ -98,14 +98,24 @@ export async function createWorkOrderHandler(input: {
 export async function getWorkOrdersHandler(input: {
   status?: string;
   artisan_id?: string;
+  overdue_only?: boolean;
   date_range?: DateRangeInput;
 }): Promise<Record<string, unknown>> {
-  const workOrders = ERP_WORK_ORDERS.filter((order) => {
+  let orders = ERP_WORK_ORDERS.filter((order) => {
     if (input.status && order.status !== input.status) return false;
     if (input.artisan_id && order.artisanId !== input.artisan_id) return false;
     if (!inDateRange(order.dueDate, input.date_range)) return false;
     return true;
-  }).map((order) => {
+  });
+
+  if (input.overdue_only) {
+    const today = new Date().toISOString().slice(0, 10);
+    orders = orders.filter(
+      (o) => o.dueDate < today && o.status !== "completed" && o.status !== "cancelled",
+    );
+  }
+
+  const workOrders = orders.map((order) => {
     const artisan = ERP_ARTISANS.find((item) => item.id === order.artisanId);
     const branch = ERP_BRANCHES.find((item) => item.id === order.branchId);
     return {
@@ -147,9 +157,7 @@ export async function calculatePayrollHandler(input: {
 
     const gross = historical
       ? historical.payout
-      : artisan.employeeType === "fixed"
-        ? artisan.fixedMonthlySalary
-        : Math.round(artisan.pieceRatePerGram * 120);
+      : Math.round(artisan.pieceRatePerGram * 120);
 
     const deduction = Math.round(gross * 0.06);
 
@@ -210,7 +218,7 @@ export async function generateReportHandler(input: {
   } else if (input.report_type === "artisan_productivity") {
     rows = ERP_ARTISANS.map((artisan) => {
       const orders = ERP_WORK_ORDERS.filter((order) => order.artisanId === artisan.id);
-      const completed = orders.filter((order) => order.status === "ready_dispatch").length;
+      const completed = orders.filter((order) => order.status === "completed").length;
       const active = orders.filter((order) => order.status === "in_progress").length;
       return {
         artisan_id: artisan.id,
@@ -277,11 +285,24 @@ export async function reconcileStockHandler(input: {
 
 export async function getCustomerDataHandler(input: {
   segment?: string;
+  aging_bucket?: string;
   last_visit_before?: string;
 }): Promise<Record<string, unknown>> {
+  function getAgingBucket(sinceDateStr: string): string {
+    const today = new Date();
+    const since = new Date(sinceDateStr);
+    const days = Math.floor((today.getTime() - since.getTime()) / 86400000);
+    if (days <= 30) return "0-30";
+    if (days <= 60) return "31-60";
+    if (days <= 90) return "61-90";
+    return "90+";
+  }
+
   const customers = ERP_CUSTOMERS.filter((customer) => {
     if (input.segment && customer.segment !== input.segment) return false;
     if (input.last_visit_before && !(customer.lastVisit < input.last_visit_before)) return false;
+    const bucket = getAgingBucket(customer.outstanding_since_date);
+    if (input.aging_bucket && bucket !== input.aging_bucket) return false;
     return true;
   }).map((customer) => ({
     customer_id: customer.id,
@@ -289,6 +310,8 @@ export async function getCustomerDataHandler(input: {
     segment: customer.segment,
     last_visit: customer.lastVisit,
     outstanding_amount: customer.outstandingAmount,
+    outstanding_since_date: customer.outstanding_since_date,
+    aging_bucket: getAgingBucket(customer.outstanding_since_date),
   }));
 
   return {
@@ -301,18 +324,27 @@ export async function getCustomerDataHandler(input: {
 export async function createInvoiceHandler(input: {
   customer_id: string;
   items: Array<{
-    item_code?: string;
+    item_id: string;
     description: string;
-    qty: number;
-    rate: number;
+    metal_value: number;
+    making_charge: number;
+    quantity: number;
   }>;
   advance_applied?: number;
 }): Promise<Record<string, unknown>> {
   const customer = ERP_CUSTOMERS.find((item) => item.id === input.customer_id);
-  const subTotal = input.items.reduce((sum, item) => sum + item.qty * item.rate, 0);
-  const gst = Math.round(subTotal * 0.03 * 100) / 100;
-  const advanceApplied = input.advance_applied ?? 0;
-  const grandTotal = Math.round((subTotal + gst - advanceApplied) * 100) / 100;
+  const totalMetal = input.items.reduce((s, i) => s + i.metal_value * i.quantity, 0);
+  const totalMaking = input.items.reduce((s, i) => s + i.making_charge * i.quantity, 0);
+  const subTotal = totalMetal + totalMaking;
+  const cgst = Math.round(totalMaking * 0.015 * 100) / 100;
+  const sgst = Math.round(totalMaking * 0.015 * 100) / 100;
+  const tax = cgst + sgst;
+  const advanceCapped = Math.min(input.advance_applied ?? 0, subTotal + tax);
+  const advanceWarning =
+    (input.advance_applied ?? 0) > subTotal + tax
+      ? "Advance exceeded invoice total — capped automatically."
+      : undefined;
+  const grandTotal = Math.round((subTotal + tax - advanceCapped) * 100) / 100;
   const invoiceId = `INV-${Date.now().toString().slice(-6)}`;
 
   return {
@@ -320,9 +352,14 @@ export async function createInvoiceHandler(input: {
     customer_id: input.customer_id,
     customer_name: customer?.name ?? "Unknown Customer",
     item_count: input.items.length,
+    metal_value_total: totalMetal,
+    making_charge_total: totalMaking,
+    cgst,
+    sgst,
     subtotal: subTotal,
-    tax: gst,
-    advance_applied: advanceApplied,
+    tax,
+    advance_applied: advanceCapped,
+    ...(advanceWarning ? { advance_warning: advanceWarning } : {}),
     grand_total: grandTotal,
     status: "issued",
     created_at: new Date().toISOString(),

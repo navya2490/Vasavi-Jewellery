@@ -1,3 +1,5 @@
+// NOTE: This module is not wired into the active agent loop.
+// It is preserved for future use. Active tools are in /lib/tool-handlers.ts
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 
