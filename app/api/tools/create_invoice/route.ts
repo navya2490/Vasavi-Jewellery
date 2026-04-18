@@ -4,10 +4,11 @@ import { z } from "zod";
 import { createInvoiceHandler } from "@/lib/tool-handlers";
 
 const ItemSchema = z.object({
-  item_code: z.string().min(2).optional(),
+  item_id: z.string().min(2),
   description: z.string().min(2),
-  qty: z.number().positive(),
-  rate: z.number().nonnegative(),
+  metal_value: z.number().nonnegative(),
+  making_charge: z.number().nonnegative(),
+  quantity: z.number().positive(),
 });
 
 const CreateInvoiceSchema = z.object({

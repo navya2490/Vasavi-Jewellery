@@ -6,6 +6,7 @@ import { getWorkOrdersHandler } from "@/lib/tool-handlers";
 const RequestSchema = z.object({
   status: z.string().optional(),
   artisan_id: z.string().optional(),
+  overdue_only: z.boolean().optional(),
   date_range: z
     .object({
       from: z.string().min(8),

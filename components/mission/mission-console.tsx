@@ -22,10 +22,10 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 
 const EXAMPLE_MISSIONS = [
-  "Reconcile today's gold stock",
-  "Run this month's artisan payroll",
-  "Show overdue work orders",
-  "Generate daily P&L summary",
+  "Reconcile today's gold stock across Main Showroom and flag any variance",
+  "Show all overdue work orders and identify which artisans are blocked",
+  "Run April 2026 payroll for all piece-rate artisans and summarise net pay",
+  "Generate a P&L summary for the last 30 days and highlight net profit",
 ];
 
 type StepStatus = "pending" | "running" | "done" | "error";
